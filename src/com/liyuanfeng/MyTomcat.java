@@ -13,7 +13,6 @@ import java.util.Map;
  */
 public class MyTomcat {
     private int port = 8088;
-    private Map<String, String> urlServletMap = new HashMap<String, String>();
 
     public MyTomcat(int port) {
         this.port = port;
@@ -21,7 +20,10 @@ public class MyTomcat {
 
     public void start() {
         //        初始化URL与对应处理的servlet的关系
-        initServletMapping();
+
+        Map<String, String> urlServletMap = ProcessThread.urlServletMap;
+
+        initServletMapping(urlServletMap);
 
         ServerSocket serverSocket = null;
         try {
@@ -30,15 +32,10 @@ public class MyTomcat {
 
             while (true) {
                 Socket socket = serverSocket.accept();
-                InputStream inputStream = socket.getInputStream();
-                OutputStream outputStream = socket.getOutputStream();
 
-                MyRequest myRequest = new MyRequest(inputStream);
-                MyResponse myResponse = new MyResponse(outputStream);
+                new Thread(new ProcessThread(socket)).start();
 
-                //                请求分发
-                dispatch(myRequest, myResponse);
-                socket.close();
+
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -53,27 +50,10 @@ public class MyTomcat {
         }
     }
 
-    private void initServletMapping() {
+
+    private void initServletMapping(Map<String, String> urlServletMap) {
         for (ServletMapping servletMapping : ServletMappingConfig.servletMappingList) {
             urlServletMap.put(servletMapping.getUrl(), servletMapping.getClazz());
-        }
-    }
-
-    public void dispatch(MyRequest myRequest, MyResponse myResponse) {
-        String clazz = urlServletMap.get(myRequest.getUrl());
-
-        //反射
-        try {
-            Class<MyServlet> myServletClass = (Class<MyServlet>) Class.forName(clazz);
-            MyServlet myServlet = myServletClass.newInstance();
-
-            myServlet.service(myRequest, myResponse);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
         }
     }
 
